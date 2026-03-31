@@ -8,14 +8,7 @@ mongoose.set('bufferCommands', false);
 mongoose.set('bufferTimeoutMS', 0);
 
 const app = express();
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    process.env.FRONTEND_URL,
-  ].filter(Boolean),
-  credentials: true,
-}));
+app.use(cors());
 app.use(express.json());
 
 // Routes
@@ -25,6 +18,10 @@ app.use('/api/admin',       require('./routes/admin'));
 app.use('/api/assessments', require('./routes/assessments'));
 app.use('/api/students',    require('./routes/students'));
 app.use('/api/ai',          require('./routes/ai'));
+
+app.get('/', (req, res) => {
+  res.send('ShikshaTrack API is running. Please access the application through the frontend URL.');
+});
 
 // Global error handler
 app.use((err, req, res, next) => {

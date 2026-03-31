@@ -26,7 +26,7 @@ export async function flushQueue(axiosInstance) {
   const failed = [];
   for (const item of queue) {
     try {
-      await axiosInstance.post('/api/assessments', item);
+      await axiosInstance.post('/assessments', item);
     } catch {
       failed.push(item);
     }
