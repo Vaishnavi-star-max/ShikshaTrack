@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Users, AlertTriangle, CheckCircle, ClipboardList, Plus, LogOut, WifiOff, Bell } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, Legend } from 'recharts';
+import { Users, AlertTriangle, CheckCircle, Plus, LogOut, WifiOff, Bell } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { flushQueue, getQueue } from '../utils/offlineQueue';
@@ -14,7 +13,6 @@ const BAR_COLORS     = ['#ef4444','#f97316','#eab308','#22c55e','#6366f1'];
 
 export default function TeacherDashboard() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [classes, setClasses]           = useState([]);
   const [studentCounts, setStudentCounts] = useState({});
   const [stats, setStats]               = useState(null);
@@ -37,12 +35,8 @@ export default function TeacherDashboard() {
 
   async function fetchAll() {
     try {
-      const [clsRes, statsRes] = await Promise.all([
-        api.get('/teacher/classes'),
-        api.get('/assessments/stats'),
-      ]);
+      const clsRes = await api.get('/teacher/classes');
       setClasses(clsRes.data);
-      setStats(statsRes.data);
 
       const counts = {};
       const allStu = [];
@@ -90,7 +84,10 @@ export default function TeacherDashboard() {
       {/* Header */}
       <header className="bg-indigo-700 text-white px-4 py-4 flex items-center justify-between sticky top-0 z-10">
         <div>
-          <h1 className="text-lg font-bold">📚 ShikshaTrack</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold">📚 ShikshaTrack</h1>
+            <span className="text-xs bg-indigo-500 px-2 py-0.5 rounded-full font-medium">👩‍🏫 Teacher</span>
+          </div>
           <p className="text-xs text-indigo-200">Welcome, {user?.name}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -148,13 +145,6 @@ export default function TeacherDashboard() {
                     {totalStudents ? Math.round((belowArith/totalStudents)*100) : 0}%
                   </p>
                   <p className="text-xs text-gray-500">Below Grade (Arithmetic)</p>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl p-4 shadow-sm flex items-center gap-3 border-l-4 border-green-400">
-                <ClipboardList className="text-green-500" size={26}/>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{stats?.totalAssessments ?? '—'}</p>
-                  <p className="text-xs text-gray-500">Assessments</p>
                 </div>
               </div>
             </div>
@@ -329,11 +319,6 @@ export default function TeacherDashboard() {
           </>
         )}
       </div>
-
-      {/* FAB */}
-      <button onClick={() => navigate('/assess')}
-        className="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-lg text-3xl flex items-center justify-center hover:bg-indigo-700 transition"
-        aria-label="Quick Assessment">+</button>
     </div>
   );
 }

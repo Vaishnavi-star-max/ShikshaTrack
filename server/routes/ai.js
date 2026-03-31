@@ -12,21 +12,19 @@ function tryParseJsonArray(text) {
     const parsed = JSON.parse(trimmed);
     return Array.isArray(parsed) ? parsed : null;
   } catch {
-    // Try to extract the first JSON array from the response.
     const start = trimmed.indexOf('[');
-    const end = trimmed.lastIndexOf(']');
-    if (start !== -1 && end !== -1 && end > start) {
+    const end   = trimmed.lastIndexOf(']');
+    if (start !== -1 && end > start) {
       try {
         const parsed = JSON.parse(trimmed.slice(start, end + 1));
         return Array.isArray(parsed) ? parsed : null;
-      } catch {
-        return null;
-      }
+      } catch { return null; }
     }
     return null;
   }
 }
 
+// POST /api/ai/recommend
 router.post('/recommend', auth, async (req, res) => {
   const { studentName, className, readingLevel, arithmeticLevel } = req.body;
 
@@ -35,46 +33,101 @@ A student named ${studentName} in ${className} has:
 - Reading Level: ${readingLevel}
 - Arithmetic Level: ${arithmeticLevel}
 
-Give 4 short, practical teaching recommendations for this teacher to help this student improve.
-Format as a JSON array of strings. Example: ["Use flashcards for letters", "Practice counting with objects"]
+Give exactly 6 short, practical teaching recommendations:
+- First 3 must be specifically about improving their READING (level: ${readingLevel})
+- Last 3 must be specifically about improving their ARITHMETIC (level: ${arithmeticLevel})
+
+Format as a JSON array of 6 strings. Label each tip clearly, e.g.:
+["[Reading] Use alphabet flashcards...", "[Reading] ...", "[Reading] ...", "[Arithmetic] Use number line...", "[Arithmetic] ...", "[Arithmetic] ..."]
 Only return the JSON array, nothing else.`;
 
   try {
-    if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
-
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'sk-placeholder') {
+      throw new Error('OpenAI key not configured');
+    }
     const completion = await openai.chat.completions.create({
       model: OPENAI_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      max_tokens: 300,
+      max_tokens: 400,
     });
-
     const text = completion.choices?.[0]?.message?.content;
     const recommendations = tryParseJsonArray(text);
-    if (!recommendations) throw new Error('Could not parse recommendations JSON');
+    if (!recommendations) throw new Error('Could not parse JSON');
     res.json({ recommendations: recommendations.map(String).slice(0, 8) });
-  } catch (err) {
-    // Fallback rule-based recommendations if OpenAI fails
-    const fallback = getRuleBased(readingLevel, arithmeticLevel);
-    res.json({ recommendations: fallback });
+  } catch {
+    res.json({ recommendations: getRuleBased(readingLevel, arithmeticLevel) });
   }
+});
+
+// POST /api/ai/tips  (alias used by admin)
+router.post('/tips', auth, async (req, res) => {
+  const { studentName, className, readingLevel, arithmeticLevel } = req.body;
+  res.json({ recommendations: getRuleBased(readingLevel, arithmeticLevel) });
 });
 
 function getRuleBased(reading, arithmetic) {
   const recs = [];
-  if (reading === 'Cannot Read' || reading === 'Letter')
-    recs.push('Use alphabet flashcards daily for 10 minutes', 'Practice letter sounds with phonics songs');
-  else if (reading === 'Word')
-    recs.push('Read simple 3-letter word books together', 'Play word-matching games');
-  else
-    recs.push('Encourage reading short paragraphs aloud', 'Discuss story meaning after reading');
 
-  if (arithmetic === 'Cannot Solve' || arithmetic === 'Number Recognition')
-    recs.push('Use physical objects (stones, sticks) to count', 'Practice number writing 1-20 daily');
-  else if (arithmetic === 'Subtraction')
-    recs.push('Use a number line for subtraction practice', 'Practice subtraction with real-life examples like sharing food');
-  else
-    recs.push('Introduce division using equal grouping of objects', 'Use multiplication tables with rhythm/songs');
+  // Reading tips — always 3
+  if (reading === 'Cannot Read') {
+    recs.push(
+      '[Reading] Use picture books and point to each letter while saying its sound.',
+      '[Reading] Practice recognising the student\'s own name in written form daily.',
+      '[Reading] Play alphabet matching games using letter cards.'
+    );
+  } else if (reading === 'Letter') {
+    recs.push(
+      '[Reading] Use phonics songs to connect letters with sounds.',
+      '[Reading] Practice blending 2-letter sounds (e.g. "a" + "t" = "at").',
+      '[Reading] Use alphabet flashcards with pictures for each letter.'
+    );
+  } else if (reading === 'Word') {
+    recs.push(
+      '[Reading] Read simple 3-letter word books together daily.',
+      '[Reading] Play word-matching games with picture cards.',
+      '[Reading] Ask the student to read labels around the classroom.'
+    );
+  } else if (reading === 'Paragraph') {
+    recs.push(
+      '[Reading] Encourage reading short paragraphs aloud with expression.',
+      '[Reading] Ask comprehension questions after each paragraph.',
+      '[Reading] Use paired reading — student reads with a peer.'
+    );
+  } else {
+    recs.push(
+      '[Reading] Introduce chapter books appropriate for the grade level.',
+      '[Reading] Discuss story meaning, characters, and plot after reading.',
+      '[Reading] Encourage the student to write a short summary of what they read.'
+    );
+  }
+
+  // Arithmetic tips — always 3
+  if (arithmetic === 'Cannot Solve') {
+    recs.push(
+      '[Arithmetic] Use physical objects (stones, sticks) to count from 1 to 10.',
+      '[Arithmetic] Practice number recognition using number cards daily.',
+      '[Arithmetic] Sing counting songs to build number sense.'
+    );
+  } else if (arithmetic === 'Number Recognition') {
+    recs.push(
+      '[Arithmetic] Practice writing numbers 1–20 every day.',
+      '[Arithmetic] Use a number line to introduce addition with small numbers.',
+      '[Arithmetic] Count real objects in the classroom to reinforce number meaning.'
+    );
+  } else if (arithmetic === 'Subtraction') {
+    recs.push(
+      '[Arithmetic] Use a number line for subtraction practice.',
+      '[Arithmetic] Practice subtraction with real-life examples like sharing food or objects.',
+      '[Arithmetic] Use fingers or counters to solve subtraction problems step by step.'
+    );
+  } else {
+    recs.push(
+      '[Arithmetic] Introduce division using equal grouping of physical objects.',
+      '[Arithmetic] Use multiplication tables with rhythm or songs.',
+      '[Arithmetic] Practice word problems involving division in daily life contexts.'
+    );
+  }
 
   return recs;
 }

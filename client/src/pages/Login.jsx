@@ -6,6 +6,7 @@ import api from '../api/axios';
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [role, setRole] = useState('teacher');
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,6 +17,12 @@ export default function Login() {
     setError('');
     try {
       const { data } = await api.post('/auth/login', form);
+      // verify role matches selection
+      if (data.user.role !== role) {
+        setError(`This account is registered as a ${data.user.role}, not a ${role}.`);
+        setLoading(false);
+        return;
+      }
       login(data.user, data.token);
       navigate(data.user.role === 'admin' ? '/admin' : '/teacher');
     } catch (err) {
@@ -28,11 +35,30 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="text-4xl mb-2">📚</div>
           <h1 className="text-2xl font-bold text-indigo-700">ShikshaTrack</h1>
-          <p className="text-gray-500 text-sm mt-1">Teacher Login</p>
+          <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
         </div>
+
+        {/* Role Toggle */}
+        <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+          <button
+            type="button"
+            onClick={() => setRole('teacher')}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${role === 'teacher' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            👩‍🏫 Teacher
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('admin')}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${role === 'admin' ? 'bg-purple-600 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            🧑‍💼 Admin
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"
@@ -54,9 +80,9 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white rounded-xl py-3 text-base font-semibold hover:bg-indigo-700 transition disabled:opacity-60"
+            className={`w-full text-white rounded-xl py-3 text-base font-semibold transition disabled:opacity-60 ${role === 'admin' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Logging in...' : `Login as ${role === 'admin' ? 'Admin' : 'Teacher'}`}
           </button>
         </form>
         <p className="text-center text-sm text-gray-500 mt-4">
